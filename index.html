@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Konfigurasi Elektron – Media Pembelajaran Kimia</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0b0e1a;--panel:rgba(13,17,41,0.88);--card:rgba(22,28,55,0.92);
+  --border:rgba(120,140,255,0.18);--accent:#5b8dee;--accent2:#a78bfa;
+  --accent3:#34d399;--text:#e2e8ff;--muted:#8892b0;
+  --radius:12px;--blur:16px;
+}
+html,body{width:100%;height:100%;background:#000;font-family:'DM Sans',sans-serif;color:var(--text);overflow:hidden}
+
+/* ── FIXED LANDSCAPE WRAPPER ── */
+#appWrapper{
+  position:fixed;
+  width:1024px;height:640px;
+  top:50%;left:50%;
+  transform-origin:center center;
+  /* JS will set transform: translate(-50%,-50%) scale(X) */
+  overflow:hidden;
+  background:var(--bg);
+}
+
+/* ── FULLSCREEN CANVAS ── */
+#atomCanvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+
+/* ── FLOATING PANEL BASE ── */
+.panel{
+  position:absolute;
+  background:var(--panel);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  backdrop-filter:blur(var(--blur));
+  -webkit-backdrop-filter:blur(var(--blur));
+  padding:14px;
+  transition:opacity .25s,transform .25s;
+}
+
+/* ── HEADER BAR ── */
+#headerBar{
+  top:14px;left:50%;transform:translateX(-50%);
+  display:flex;align-items:center;gap:10px;
+  padding:10px 20px;white-space:nowrap;z-index:20;
+}
+.logo-dot{width:9px;height:9px;border-radius:50%;background:var(--accent);flex-shrink:0}
+#headerBar h1{font-family:'Space Mono',monospace;font-size:.85rem;color:var(--accent);letter-spacing:.06em}
+#headerBar .hdiv{width:1px;height:14px;background:var(--border);margin:0 4px}
+#headerBar .htag{font-size:.72rem;color:var(--muted)}
+#modeTag{font-size:.68rem;font-family:'Space Mono',monospace;padding:3px 8px;border-radius:99px;border:1px solid var(--border);color:var(--accent2);background:rgba(167,139,250,.08);margin-left:4px}
+
+/* ── SIDE COLUMNS (pure CSS, no JS positioning) ── */
+#colLeft{
+  position:absolute;top:72px;left:14px;bottom:80px;
+  display:flex;flex-direction:column;gap:10px;
+  width:210px;z-index:10;pointer-events:none;
+}
+#colLeft>.panel{pointer-events:all;position:relative;top:auto;left:auto;right:auto;bottom:auto;width:100%;}
+#panelOrbitals{flex:0 1 auto;min-height:0;overflow-y:auto;}
+
+#colRight{
+  position:absolute;top:72px;right:14px;bottom:80px;
+  display:flex;flex-direction:column;gap:10px;
+  width:240px;z-index:10;pointer-events:none;
+}
+#colRight>.panel{pointer-events:all;position:relative;top:auto;left:auto;right:auto;bottom:auto;width:100%;}
+#panelSubshell{flex:1;min-height:0;overflow-y:auto;}
+
+/* ── ELEMENT CARD ── */
+#panelElement{text-align:center;}
+.el-symbol{font-family:'Space Mono',monospace;font-size:2.6rem;font-weight:700;color:var(--accent);line-height:1}
+.el-name{font-size:.75rem;color:var(--muted);margin-top:2px}
+.el-num{font-family:'Space Mono',monospace;font-size:.65rem;color:var(--accent2);margin-top:2px}
+
+/* ── CONTROLS (bottom-center) ── */
+#panelControls{
+  bottom:14px;left:50%;transform:translateX(-50%);
+  display:flex;align-items:center;gap:10px;z-index:10;
+  padding:10px 18px;
+}
+.btn-circle{width:40px;height:40px;border-radius:50%;border:1.5px solid var(--accent);background:transparent;color:var(--accent);font-size:1.3rem;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;font-family:'Space Mono',monospace;flex-shrink:0}
+.btn-circle:hover{background:rgba(91,141,238,.18);transform:scale(1.06)}
+.btn-circle:active{transform:scale(.93)}
+.btn-circle:disabled{opacity:.28;cursor:default}
+.ctrl-center{display:flex;flex-direction:column;align-items:center;gap:2px}
+.electron-count{font-family:'Space Mono',monospace;font-size:2rem;font-weight:700;color:var(--text);line-height:1}
+.electron-label{font-size:.65rem;color:var(--muted)}
+.ctrl-sep{width:1px;height:36px;background:var(--border)}
+.input-row{display:flex;gap:6px;align-items:center}
+.el-input{width:72px;background:rgba(91,141,238,.08);border:1.5px solid rgba(91,141,238,.22);border-radius:8px;color:var(--text);font-family:'Space Mono',monospace;font-size:.82rem;padding:.38rem .5rem;text-align:center;outline:none;transition:border .15s}
+.el-input:focus{border-color:var(--accent)}
+.btn-go{padding:.38rem .75rem;border-radius:8px;border:1.5px solid var(--accent3);background:transparent;color:var(--accent3);font-size:.72rem;font-family:'Space Mono',monospace;cursor:pointer;transition:all .15s;white-space:nowrap}
+.btn-go:hover{background:rgba(52,211,153,.12)}
+
+/* ── HINT ── */
+#clickHint{
+  position:absolute;bottom:115px;left:50%;transform:translateX(-50%);
+  font-size:.68rem;color:var(--muted);letter-spacing:.04em;
+  transition:opacity .3s;pointer-events:none;z-index:5;
+  text-align:center;white-space:nowrap;
+}
+
+/* ── CONFIG PANEL ── */
+#panelConfig{z-index:10}
+.panel-label{font-size:.62rem;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:6px}
+.config-text{font-family:'Space Mono',monospace;font-size:.68rem;color:var(--accent3);line-height:1.85;word-break:break-all}
+
+/* ── QN PANEL ── */
+#panelQN{z-index:10}
+.qn-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:4px}
+.qn-item{background:rgba(91,141,238,.06);border:1px solid rgba(91,141,238,.12);border-radius:8px;padding:7px 9px}
+.qn-name{font-size:.58rem;color:var(--muted);text-transform:uppercase;letter-spacing:.07em}
+.qn-val{font-family:'Space Mono',monospace;font-size:.8rem;color:var(--accent2);font-weight:700;margin-top:1px}
+
+/* ── ORBITAL DIAGRAM PANEL ── */
+#panelOrbitals::-webkit-scrollbar{width:3px}
+#panelOrbitals::-webkit-scrollbar-thumb{background:rgba(91,141,238,.25);border-radius:99px}
+.orbital-row{display:flex;align-items:center;gap:5px;margin-bottom:5px}
+.orbital-label{font-family:'Space Mono',monospace;font-size:.65rem;width:28px;flex-shrink:0}
+.orbital-boxes{display:flex;gap:3px;flex-wrap:wrap}
+.orbital-box{width:22px;height:22px;border:1.5px solid rgba(120,140,255,.28);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:.75rem}
+.arrow-up{color:var(--accent)}
+.arrow-down{color:var(--accent2);transform:scaleY(-1);display:inline-block}
+
+/* ── SUBSHELL PANEL (replaces colRight content on click) ── */
+#panelSubshell{
+  z-index:30;
+  display:none;
+  overflow-y:auto;
+}
+#panelSubshell::-webkit-scrollbar{width:3px}
+#panelSubshell::-webkit-scrollbar-thumb{background:rgba(91,141,238,.25);border-radius:99px}
+.btn-back{display:flex;align-items:center;gap:7px;background:rgba(91,141,238,.1);border:1.5px solid var(--accent);border-radius:9px;color:var(--accent);font-family:'Space Mono',monospace;font-size:.72rem;padding:7px 12px;cursor:pointer;transition:all .15s;width:100%;margin-bottom:12px}
+.btn-back:hover{background:rgba(91,141,238,.2)}
+.sub-header{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.sub-shell-badge{font-family:'Space Mono',monospace;font-size:1.5rem;font-weight:700;padding:4px 14px;border-radius:9px;border:1.5px solid}
+.sub-shell-info{font-size:.75rem;color:var(--muted);line-height:1.5}
+.sub-shell-name{font-size:.9rem;color:var(--text);font-weight:500}
+.bar-list{display:flex;flex-direction:column;gap:5px;margin-bottom:12px}
+.bar-item{display:flex;align-items:center;gap:7px}
+.bar-lbl{font-family:'Space Mono',monospace;font-size:.67rem;width:26px;flex-shrink:0}
+.bar-track{flex:1;height:6px;background:rgba(255,255,255,.06);border-radius:99px;overflow:hidden}
+.bar-fill{height:100%;border-radius:99px;transition:width .4s}
+.bar-cnt{font-family:'Space Mono',monospace;font-size:.6rem;color:var(--muted);width:22px;text-align:right}
+.sub-cards{display:flex;flex-direction:column;gap:8px}
+.sub-card{background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:9px;padding:10px}
+.sub-card-head{display:flex;align-items:center;gap:7px;margin-bottom:7px}
+.sub-badge{font-family:'Space Mono',monospace;font-size:.8rem;font-weight:700;padding:2px 8px;border-radius:5px}
+.sub-cnt{font-size:.7rem;color:var(--muted)}
+.sub-orb-row{display:flex;gap:4px;flex-wrap:wrap}
+.sub-orb-box{width:25px;height:25px;border-radius:4px;border:1.5px solid rgba(120,140,255,.22);display:flex;align-items:center;justify-content:center;font-size:.8rem}
+.sub-desc{margin-top:6px;font-size:.66rem;color:var(--muted);line-height:1.55}
+.divider{height:1px;background:var(--border);margin:10px 0}
+</style>
+</head>
+<body>
+<div id="appWrapper">
+
+<canvas id="atomCanvas"></canvas>
+
+<!-- Header -->
+<div class="panel" id="headerBar">
+  <div class="logo-dot"></div>
+  <h1>KONFIGURASI ELEKTRON</h1>
+  <div class="hdiv"></div>
+  <span class="htag">Media Pembelajaran Kimia · Mekanika Kuantum</span>
+  <div id="modeTag">Atom View</div>
+</div>
+
+<!-- Left column -->
+<div id="colLeft">
+<!-- Element card -->
+<div class="panel" id="panelElement">
+  <div class="el-symbol" id="elSymbol">H</div>
+  <div class="el-name" id="elName">Hidrogen</div>
+  <div class="el-num" id="elNumber">Z=1 · Per.1 · IA</div>
+</div>
+
+<!-- Orbital diagram panel -->
+<div class="panel" id="panelOrbitals">
+  <div class="panel-label">Diagram Orbital (Hund)</div>
+  <div id="orbitalDiagram"></div>
+</div>
+</div><!-- /colLeft -->
+
+<!-- Controls bar -->
+<div class="panel" id="panelControls">
+  <button class="btn-circle" id="btnMinus" onclick="changeElectron(-1)">−</button>
+  <div class="ctrl-center">
+    <div class="electron-count" id="elCount">1</div>
+    <div class="electron-label">elektron</div>
+  </div>
+  <button class="btn-circle" id="btnPlus" onclick="changeElectron(+1)">+</button>
+  <div class="ctrl-sep"></div>
+  <div class="input-row">
+    <input class="el-input" id="elDirectInput" type="number" min="1" max="118" placeholder="Z…"/>
+    <button class="btn-go" onclick="applyDirectInput()">Terapkan</button>
+  </div>
+</div>
+
+<!-- Click hint -->
+<div id="clickHint" style="opacity:.4">Klik pada orbit kulit untuk detail subkulit</div>
+
+<!-- Right column -->
+<div id="colRight">
+<!-- Config panel -->
+<div class="panel" id="panelConfig">
+  <div class="panel-label">Konfigurasi Elektron</div>
+  <div class="config-text" id="configText">1s¹</div>
+</div>
+
+<!-- QN panel -->
+<div class="panel" id="panelQN">
+  <div class="panel-label">Elektron Terakhir · Bil. Kuantum</div>
+  <div class="qn-grid">
+    <div class="qn-item"><div class="qn-name">n utama</div><div class="qn-val" id="qn-n">1</div></div>
+    <div class="qn-item"><div class="qn-name">l azimuth</div><div class="qn-val" id="qn-l">0</div></div>
+    <div class="qn-item"><div class="qn-name">m magnetik</div><div class="qn-val" id="qn-m">0</div></div>
+    <div class="qn-item"><div class="qn-name">s spin</div><div class="qn-val" id="qn-s">+½</div></div>
+  </div>
+</div>
+
+<!-- Subshell floating panel (shown on shell click, replaces above) -->
+<div class="panel" id="panelSubshell">
+  <button class="btn-back" onclick="exitSubshellMode()">← Kembali ke Tampilan Atom</button>
+  <div class="sub-header">
+    <div class="sub-shell-badge" id="subShellBadge">K</div>
+    <div>
+      <div class="sub-shell-name" id="subShellName">Kulit K · n = 1</div>
+      <div class="sub-shell-info" id="subShellInfo">2 elektron dari maks. 2</div>
+    </div>
+  </div>
+  <div class="panel-label">Distribusi Subkulit</div>
+  <div class="bar-list" id="shellBarList"></div>
+  <div class="divider"></div>
+  <div class="panel-label">Detail Orbital</div>
+  <div class="sub-cards" id="subshellCards"></div>
+</div>
+</div><!-- /colRight -->
+
+<script>
+const ELEMENTS=[null,
+  {sym:'H',name:'Hidrogen',period:1,group:'IA'},{sym:'He',name:'Helium',period:1,group:'VIIIA'},
+  {sym:'Li',name:'Litium',period:2,group:'IA'},{sym:'Be',name:'Berilium',period:2,group:'IIA'},
+  {sym:'B',name:'Boron',period:2,group:'IIIA'},{sym:'C',name:'Karbon',period:2,group:'IVA'},
+  {sym:'N',name:'Nitrogen',period:2,group:'VA'},{sym:'O',name:'Oksigen',period:2,group:'VIA'},
+  {sym:'F',name:'Fluor',period:2,group:'VIIA'},{sym:'Ne',name:'Neon',period:2,group:'VIIIA'},
+  {sym:'Na',name:'Natrium',period:3,group:'IA'},{sym:'Mg',name:'Magnesium',period:3,group:'IIA'},
+  {sym:'Al',name:'Aluminium',period:3,group:'IIIA'},{sym:'Si',name:'Silikon',period:3,group:'IVA'},
+  {sym:'P',name:'Fosfor',period:3,group:'VA'},{sym:'S',name:'Sulfur',period:3,group:'VIA'},
+  {sym:'Cl',name:'Klor',period:3,group:'VIIA'},{sym:'Ar',name:'Argon',period:3,group:'VIIIA'},
+  {sym:'K',name:'Kalium',period:4,group:'IA'},{sym:'Ca',name:'Kalsium',period:4,group:'IIA'},
+  {sym:'Sc',name:'Skandium',period:4,group:'IIIB'},{sym:'Ti',name:'Titanium',period:4,group:'IVB'},
+  {sym:'V',name:'Vanadium',period:4,group:'VB'},{sym:'Cr',name:'Kromium',period:4,group:'VIB'},
+  {sym:'Mn',name:'Mangan',period:4,group:'VIIB'},{sym:'Fe',name:'Besi',period:4,group:'VIIIB'},
+  {sym:'Co',name:'Kobalt',period:4,group:'VIIIB'},{sym:'Ni',name:'Nikel',period:4,group:'VIIIB'},
+  {sym:'Cu',name:'Tembaga',period:4,group:'IB'},{sym:'Zn',name:'Seng',period:4,group:'IIB'},
+  {sym:'Ga',name:'Galium',period:4,group:'IIIA'},{sym:'Ge',name:'Germanium',period:4,group:'IVA'},
+  {sym:'As',name:'Arsen',period:4,group:'VA'},{sym:'Se',name:'Selenium',period:4,group:'VIA'},
+  {sym:'Br',name:'Brom',period:4,group:'VIIA'},{sym:'Kr',name:'Kripton',period:4,group:'VIIIA'},
+  {sym:'Rb',name:'Rubidium',period:5,group:'IA'},{sym:'Sr',name:'Strontium',period:5,group:'IIA'},
+  {sym:'Y',name:'Itrium',period:5,group:'IIIB'},{sym:'Zr',name:'Zirkonium',period:5,group:'IVB'},
+  {sym:'Nb',name:'Niobium',period:5,group:'VB'},{sym:'Mo',name:'Molibdenum',period:5,group:'VIB'},
+  {sym:'Tc',name:'Teknesium',period:5,group:'VIIB'},{sym:'Ru',name:'Rutenium',period:5,group:'VIIIB'},
+  {sym:'Rh',name:'Rodium',period:5,group:'VIIIB'},{sym:'Pd',name:'Paladium',period:5,group:'VIIIB'},
+  {sym:'Ag',name:'Perak',period:5,group:'IB'},{sym:'Cd',name:'Kadmium',period:5,group:'IIB'},
+  {sym:'In',name:'Indium',period:5,group:'IIIA'},{sym:'Sn',name:'Timah',period:5,group:'IVA'},
+  {sym:'Sb',name:'Antimon',period:5,group:'VA'},{sym:'Te',name:'Telurium',period:5,group:'VIA'},
+  {sym:'I',name:'Iodin',period:5,group:'VIIA'},{sym:'Xe',name:'Xenon',period:5,group:'VIIIA'},
+  {sym:'Cs',name:'Sesium',period:6,group:'IA'},{sym:'Ba',name:'Barium',period:6,group:'IIA'},
+  {sym:'La',name:'Lantanum',period:6,group:'IIIB'},{sym:'Ce',name:'Serium',period:6,group:'Lantanida'},
+  {sym:'Pr',name:'Praseodimium',period:6,group:'Lantanida'},{sym:'Nd',name:'Neodimium',period:6,group:'Lantanida'},
+  {sym:'Pm',name:'Prometium',period:6,group:'Lantanida'},{sym:'Sm',name:'Samarium',period:6,group:'Lantanida'},
+  {sym:'Eu',name:'Europium',period:6,group:'Lantanida'},{sym:'Gd',name:'Gadolinium',period:6,group:'Lantanida'},
+  {sym:'Tb',name:'Terbium',period:6,group:'Lantanida'},{sym:'Dy',name:'Disprosium',period:6,group:'Lantanida'},
+  {sym:'Ho',name:'Holmium',period:6,group:'Lantanida'},{sym:'Er',name:'Erbium',period:6,group:'Lantanida'},
+  {sym:'Tm',name:'Tulium',period:6,group:'Lantanida'},{sym:'Yb',name:'Iterbium',period:6,group:'Lantanida'},
+  {sym:'Lu',name:'Lutesium',period:6,group:'Lantanida'},{sym:'Hf',name:'Hafnium',period:6,group:'IVB'},
+  {sym:'Ta',name:'Tantalum',period:6,group:'VB'},{sym:'W',name:'Wolfram',period:6,group:'VIB'},
+  {sym:'Re',name:'Renium',period:6,group:'VIIB'},{sym:'Os',name:'Osmium',period:6,group:'VIIIB'},
+  {sym:'Ir',name:'Iridium',period:6,group:'VIIIB'},{sym:'Pt',name:'Platina',period:6,group:'VIIIB'},
+  {sym:'Au',name:'Emas',period:6,group:'IB'},{sym:'Hg',name:'Raksa',period:6,group:'IIB'},
+  {sym:'Tl',name:'Talium',period:6,group:'IIIA'},{sym:'Pb',name:'Timbal',period:6,group:'IVA'},
+  {sym:'Bi',name:'Bismut',period:6,group:'VA'},{sym:'Po',name:'Polonium',period:6,group:'VIA'},
+  {sym:'At',name:'Astatin',period:6,group:'VIIA'},{sym:'Rn',name:'Radon',period:6,group:'VIIIA'},
+  {sym:'Fr',name:'Fransium',period:7,group:'IA'},{sym:'Ra',name:'Radium',period:7,group:'IIA'},
+  {sym:'Ac',name:'Aktinium',period:7,group:'IIIB'},{sym:'Th',name:'Torium',period:7,group:'Aktinida'},
+  {sym:'Pa',name:'Protaktinium',period:7,group:'Aktinida'},{sym:'U',name:'Uranium',period:7,group:'Aktinida'},
+  {sym:'Np',name:'Neptunium',period:7,group:'Aktinida'},{sym:'Pu',name:'Plutonium',period:7,group:'Aktinida'},
+  {sym:'Am',name:'Amerisium',period:7,group:'Aktinida'},{sym:'Cm',name:'Kurium',period:7,group:'Aktinida'},
+  {sym:'Bk',name:'Berkelium',period:7,group:'Aktinida'},{sym:'Cf',name:'Kalifornium',period:7,group:'Aktinida'},
+  {sym:'Es',name:'Einsteinium',period:7,group:'Aktinida'},{sym:'Fm',name:'Fermium',period:7,group:'Aktinida'},
+  {sym:'Md',name:'Mendelevium',period:7,group:'Aktinida'},{sym:'No',name:'Nobelium',period:7,group:'Aktinida'},
+  {sym:'Lr',name:'Lawrensium',period:7,group:'Aktinida'},{sym:'Rf',name:'Rutherfordium',period:7,group:'IVB'},
+  {sym:'Db',name:'Dubnium',period:7,group:'VB'},{sym:'Sg',name:'Seaborgium',period:7,group:'VIB'},
+  {sym:'Bh',name:'Bohrium',period:7,group:'VIIB'},{sym:'Hs',name:'Hassium',period:7,group:'VIIIB'},
+  {sym:'Mt',name:'Meitnerium',period:7,group:'VIIIB'},{sym:'Ds',name:'Darmstadtium',period:7,group:'VIIIB'},
+  {sym:'Rg',name:'Röntgenium',period:7,group:'IB'},{sym:'Cn',name:'Kopernisium',period:7,group:'IIB'},
+  {sym:'Nh',name:'Nihonium',period:7,group:'IIIA'},{sym:'Fl',name:'Flerovium',period:7,group:'IVA'},
+  {sym:'Mc',name:'Moskovia',period:7,group:'VA'},{sym:'Lv',name:'Livermorium',period:7,group:'VIA'},
+  {sym:'Ts',name:'Tennesin',period:7,group:'VIIA'},{sym:'Og',name:'Oganesson',period:7,group:'VIIIA'},
+];
+
+const AUFBAU=[
+  {n:1,l:0,label:'1s',cap:2},{n:2,l:0,label:'2s',cap:2},{n:2,l:1,label:'2p',cap:6},
+  {n:3,l:0,label:'3s',cap:2},{n:3,l:1,label:'3p',cap:6},{n:4,l:0,label:'4s',cap:2},
+  {n:3,l:2,label:'3d',cap:10},{n:4,l:1,label:'4p',cap:6},{n:5,l:0,label:'5s',cap:2},
+  {n:4,l:2,label:'4d',cap:10},{n:5,l:1,label:'5p',cap:6},{n:6,l:0,label:'6s',cap:2},
+  {n:4,l:3,label:'4f',cap:14},{n:5,l:2,label:'5d',cap:10},{n:6,l:1,label:'6p',cap:6},
+  {n:7,l:0,label:'7s',cap:2},{n:5,l:3,label:'5f',cap:14},{n:6,l:2,label:'6d',cap:10},
+  {n:7,l:1,label:'7p',cap:6},
+];
+
+const SHELL_COLORS=['#ff6b6b','#ffa94d','#ffe066','#69db7c','#74c0fc','#a78bfa','#f783ac'];
+const SUBSHELL_COLORS={0:'#60a5fa',1:'#f472b6',2:'#34d399',3:'#fb923c'};
+const SHELL_NAMES=['','K','L','M','N','O','P','Q'];
+const MAX_SHELL_CAP=[0,2,8,18,32,32,18,8];
+const SUP=['⁰','¹','²','³','⁴','⁵','⁶','⁷','⁸','⁹','¹⁰','¹¹','¹²','¹³','¹⁴'];
+
+function H(h,a){const r=parseInt(h.slice(1,3),16),g=parseInt(h.slice(3,5),16),b=parseInt(h.slice(5,7),16);return a===undefined?`${r},${g},${b}`:`rgba(${r},${g},${b},${a})`;}
+
+function getConfig(Z){
+  let rem=Z,cfg=[];
+  for(const o of AUFBAU){if(rem<=0)break;cfg.push({...o,fill:Math.min(rem,o.cap)});rem-=cfg[cfg.length-1].fill;}
+  return cfg;
+}
+function configString(c){return c.map(o=>o.label+(o.fill<SUP.length?SUP[o.fill]:o.fill)).join(' ');}
+function getLastE(cfg){
+  if(!cfg.length)return null;
+  const o=cfg[cfg.length-1];const l=o.l;
+  const mv=[];for(let m=-l;m<=l;m++)mv.push(m);
+  const idx=o.fill-1;
+  return{n:o.n,l,m:idx<mv.length?mv[idx]:mv[idx-mv.length],s:idx<mv.length?.5:-.5};
+}
+function buildShellMap(cfg){
+  const s={};for(const o of cfg){if(!s[o.n])s[o.n]=[];s[o.n].push(o);}return s;
+}
+
+// ── State ──
+let currentZ=1,electrons=[],newElIdx=-1,hlTimer=0;
+let viewMode='atom',selN=null,hovN=null,subElectrons=[];
+
+// ── Canvas setup (dynamic size) ──
+const canvas=document.getElementById('atomCanvas');
+const ctx=canvas.getContext('2d');
+let CW,CH,CCX,CCY;
+
+function resizeCanvas(){
+  const wrap=document.getElementById('appWrapper');
+  CW=canvas.width=wrap.offsetWidth;
+  CH=canvas.height=wrap.offsetHeight;
+  CCX=CW/2; CCY=CH/2;
+  positionPanels();
+}
+
+// Shell radii scale with viewport
+function shellR(n){
+  const base=Math.min(CW,CH)*0.5;
+  const steps=[0,.105,.2,.295,.385,.47,.555,.635];
+  return base*(steps[n]||0);
+}
+function subR(l){
+  const base=Math.min(CW,CH)*0.44;
+  const steps=[.11,.22,.33,.43];
+  return base*(steps[l]||.11);
+}
+
+// ── Panel positioning handled by CSS flexbox columns ──
+function positionPanels(){
+  // Set column top to just below the header bar
+  const hdr=document.getElementById('headerBar');
+  const colTop=(hdr.offsetTop+hdr.offsetHeight+10)+'px';
+  document.getElementById('colLeft').style.top=colTop;
+  document.getElementById('colRight').style.top=colTop;
+}
+
+// ── Build electron objects ──
+function buildElectronObjects(Z){
+  const cfg=getConfig(Z),sm=buildShellMap(cfg),objs=[];
+  for(const[ns,orbs] of Object.entries(sm)){
+    const n=parseInt(ns),r=shellR(n);
+    const tot=orbs.reduce((s,o)=>s+o.fill,0);
+    let gi=0;
+    for(const orb of orbs){
+      const l=orb.l,mv=[];for(let m=-l;m<=l;m++)mv.push(m);
+      const nO=mv.length;
+      for(let ei=0;ei<orb.fill;ei++){
+        const mIdx=ei<nO?ei:ei-nO,spin=ei<nO?1:-1;
+        objs.push({n,l,m:mv[mIdx],spin,r,angle:(gi/tot)*Math.PI*2,
+          speed:(0.4+Math.random()*.3)*(spin>0?1:-1)/(n*1.2),
+          color:SUBSHELL_COLORS[l],size:Math.max(3,5.5-n*.28),trail:[]});
+        gi++;
+      }
+    }
+  }
+  return objs;
+}
+
+function buildSubElectrons(n){
+  const cfg=getConfig(currentZ),sm=buildShellMap(cfg),orbs=sm[n]||[],objs=[];
+  for(const orb of orbs){
+    const l=orb.l,mv=[];for(let m=-l;m<=l;m++)mv.push(m);
+    const nO=mv.length,r=subR(l);
+    for(let ei=0;ei<orb.fill;ei++){
+      const mIdx=ei<nO?ei:ei-nO,spin=ei<nO?1:-1;
+      objs.push({l,spin,mIdx,r,angle:(mIdx/nO)*Math.PI*2+(spin<0?.25:0),
+        speed:(0.35+Math.random()*.25)*(spin>0?1:-1)/(l+1),
+        color:SUBSHELL_COLORS[l],size:6.5,trail:[],orbLabel:orb.label});
+    }
+  }
+  return objs;
+}
+
+// ── Draw ──
+function drawNucleus(Z){
+  const r=Math.min(22+Z*.28,38);
+  const g=ctx.createRadialGradient(CCX,CCY,2,CCX,CCY,r);
+  g.addColorStop(0,'#fff8e0');g.addColorStop(.4,'#ffc94d');g.addColorStop(1,'#ff6b00');
+  ctx.beginPath();ctx.arc(CCX,CCY,r,0,Math.PI*2);ctx.fillStyle=g;ctx.fill();
+  ctx.strokeStyle='rgba(255,200,80,.35)';ctx.lineWidth=2;ctx.stroke();
+  ctx.fillStyle='#1a0a00';
+  ctx.font=`bold ${Math.max(8,14-Math.floor(Math.log2(Z+1)))}px Space Mono,monospace`;
+  ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(Z,CCX,CCY);
+}
+
+function drawShells(sm){
+  const ns=Object.keys(sm).map(Number).sort();
+  for(const n of ns){
+    const r=shellR(n),isH=hovN===n;
+    ctx.beginPath();ctx.arc(CCX,CCY,r,0,Math.PI*2);
+    ctx.strokeStyle=isH?H(SHELL_COLORS[n-1],.55):H(SHELL_COLORS[n-1],.14);
+    ctx.lineWidth=isH?2:1;ctx.setLineDash([4,7]);ctx.stroke();ctx.setLineDash([]);
+    if(isH){ctx.beginPath();ctx.arc(CCX,CCY,r,0,Math.PI*2);ctx.strokeStyle=H(SHELL_COLORS[n-1],.06);ctx.lineWidth=12;ctx.stroke();}
+    ctx.fillStyle=H(SHELL_COLORS[n-1],.7);ctx.font='11px Space Mono,monospace';ctx.textAlign='left';
+    ctx.fillText(`n=${n}  ${SHELL_NAMES[n]}`,CCX+r*.707+6,CCY-r*.707-6);
+  }
+}
+
+function drawElectron(e,isNew){
+  const x=CCX+e.r*Math.cos(e.angle),y=CCY+e.r*Math.sin(e.angle);
+  e.trail.push({x,y});if(e.trail.length>18)e.trail.shift();
+  for(let ti=0;ti<e.trail.length;ti++){
+    const pt=e.trail[ti];ctx.beginPath();ctx.arc(pt.x,pt.y,e.size*.6,0,Math.PI*2);
+    ctx.fillStyle=H(e.color,(ti/e.trail.length)*.42);ctx.fill();
+  }
+  if(isNew){ctx.beginPath();ctx.arc(x,y,e.size+7,0,Math.PI*2);ctx.fillStyle=H(e.color,.28*(hlTimer/120));ctx.fill();}
+  const sz=e.size+(isNew?2:0);
+  const gr=ctx.createRadialGradient(x-sz*.3,y-sz*.3,0,x,y,sz);
+  gr.addColorStop(0,'#fff');gr.addColorStop(.3,e.color);gr.addColorStop(1,H(e.color,.6));
+  ctx.beginPath();ctx.arc(x,y,sz,0,Math.PI*2);ctx.fillStyle=gr;ctx.fill();
+  ctx.fillStyle=e.spin>0?'#fff':'#ffecb3';ctx.font='bold 7px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillText(e.spin>0?'↑':'↓',x,y);
+}
+
+function drawElectrons(){
+  for(let i=0;i<electrons.length;i++){
+    const e=electrons[i];e.angle+=e.speed*.016*60;
+    drawElectron(e,i===newElIdx&&hlTimer>0);
+  }
+  if(hlTimer>0)hlTimer--;
+}
+
+function drawSubshellView(n){
+  ctx.clearRect(0,0,CW,CH);
+  const cfg=getConfig(currentZ),sm=buildShellMap(cfg),orbs=sm[n]||[];
+  // dim background hint text
+  ctx.fillStyle='rgba(136,146,176,0.06)';ctx.font='bold 180px Space Mono,monospace';
+  ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(SHELL_NAMES[n],CCX,CCY);
+  // subshell rings
+  for(const orb of orbs){
+    const l=orb.l,r=subR(l);
+    ctx.beginPath();ctx.arc(CCX,CCY,r,0,Math.PI*2);
+    ctx.strokeStyle=H(SUBSHELL_COLORS[l],.22);ctx.lineWidth=1.5;ctx.setLineDash([5,8]);ctx.stroke();ctx.setLineDash([]);
+    ctx.fillStyle=H(SUBSHELL_COLORS[l],.75);ctx.font='bold 12px Space Mono,monospace';ctx.textAlign='center';
+    ctx.fillText(`${orb.label}  (${orb.fill}/${orb.cap}e⁻)`,CCX,CCY-r-12);
+  }
+  // nucleus badge
+  const sc=SHELL_COLORS[n-1];
+  const ng=ctx.createRadialGradient(CCX,CCY,2,CCX,CCY,30);
+  ng.addColorStop(0,H(sc,1));ng.addColorStop(1,H(sc,.3));
+  ctx.beginPath();ctx.arc(CCX,CCY,30,0,Math.PI*2);ctx.fillStyle=ng;ctx.fill();
+  ctx.strokeStyle=H(sc,.5);ctx.lineWidth=2;ctx.stroke();
+  ctx.fillStyle='#0b0e1a';ctx.font='bold 13px Space Mono,monospace';ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillText(`n=${n}`,CCX,CCY-7);ctx.font='11px Space Mono,monospace';ctx.fillStyle='rgba(255,255,255,.65)';ctx.fillText(SHELL_NAMES[n],CCX,CCY+8);
+  // electrons
+  for(const e of subElectrons){
+    e.angle+=e.speed*.016*60;drawElectron(e,false);
+  }
+}
+
+// ── Subshell sidebar ──
+function openSubshellPanel(n){
+  const cfg=getConfig(currentZ),sm=buildShellMap(cfg),orbs=sm[n]||[];
+  const tot=orbs.reduce((s,o)=>s+o.fill,0),maxE=MAX_SHELL_CAP[n]||0;
+  const sc=SHELL_COLORS[n-1];
+  const badge=document.getElementById('subShellBadge');
+  badge.textContent=SHELL_NAMES[n];badge.style.color=sc;badge.style.borderColor=H(sc,.5);badge.style.background=H(sc,.1);
+  document.getElementById('subShellName').textContent=`Kulit ${SHELL_NAMES[n]} · n = ${n}`;
+  document.getElementById('subShellInfo').textContent=`${tot} elektron dari maks. ${maxE}`;
+  // bars
+  const bl=document.getElementById('shellBarList');bl.innerHTML='';
+  for(const o of orbs){
+    const c=SUBSHELL_COLORS[o.l],pct=(o.fill/o.cap*100).toFixed(0);
+    bl.innerHTML+=`<div class="bar-item"><div class="bar-lbl" style="color:${c}">${o.label}</div><div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:${c}"></div></div><div class="bar-cnt" style="color:${c}">${o.fill}/${o.cap}</div></div>`;
+  }
+  // cards
+  const lDesc={0:'Orbital s — bulat simetris, 1 orbital, maks. 2e⁻.',
+               1:'Orbital p — dumbbell, 3 orbital (px py pz), maks. 6e⁻.',
+               2:'Orbital d — rosette, 5 orbital, maks. 10e⁻.',
+               3:'Orbital f — kompleks, 7 orbital, maks. 14e⁻.'};
+  const cards=document.getElementById('subshellCards');cards.innerHTML='';
+  for(const o of orbs){
+    const l=o.l,c=SUBSHELL_COLORS[l],nO=2*l+1;
+    let bx='';
+    for(let i=0;i<nO;i++){
+      const ex=o.fill-nO;let inner='';
+      if(o.fill<=nO){if(i<o.fill)inner='<span class="arrow-up">↑</span>';}
+      else{if(i<ex)inner='<span class="arrow-up">↑</span><span class="arrow-down">↑</span>';else inner='<span class="arrow-up">↑</span>';}
+      bx+=`<div class="sub-orb-box" style="border-color:${H(c,.4)}">${inner}</div>`;
+    }
+    cards.innerHTML+=`<div class="sub-card" style="border-color:${H(c,.2)}"><div class="sub-card-head"><div class="sub-badge" style="background:${H(c,.15)};color:${c}">${o.label}</div><div class="sub-cnt">${o.fill}/${o.cap} elektron · l=${l} · ${nO} orbital</div></div><div class="sub-orb-row">${bx}</div><div class="sub-desc">${lDesc[l]}</div></div>`;
+  }
+  document.getElementById('panelSubshell').style.display='flex';
+  document.getElementById('panelSubshell').style.flexDirection='column';
+  document.getElementById('panelSubshell').style.flex='1';
+  document.getElementById('panelSubshell').style.minHeight='0';
+  document.getElementById('panelSubshell').style.overflowY='auto';
+  document.getElementById('modeTag').textContent=`Subkulit n=${n}`;
+  // hide right panels (replaced by subshell panel), dim but keep left panels
+  ['panelConfig','panelQN'].forEach(id=>{document.getElementById(id).style.display='none';});
+  ['panelOrbitals','panelElement'].forEach(id=>{document.getElementById(id).style.opacity='0.45';});
+}
+
+function exitSubshellMode(){
+  viewMode='atom';selN=null;subElectrons=[];
+  const ps=document.getElementById('panelSubshell');
+  ps.style.display='none';ps.style.flex='';ps.style.minHeight='';
+  document.getElementById('modeTag').textContent='Atom View';
+  ['panelConfig','panelQN'].forEach(id=>{document.getElementById(id).style.display='block';});
+  ['panelOrbitals','panelElement'].forEach(id=>{document.getElementById(id).style.opacity='1';});
+  canvas.style.cursor='default';
+}
+
+// ── Canvas events ──
+// Helper: convert viewport coords to unscaled canvas coords
+function toCanvasCoords(clientX, clientY){
+  const wrap=document.getElementById('appWrapper');
+  const r=wrap.getBoundingClientRect();
+  const scaleX=r.width/1024, scaleY=r.height/640;
+  return {x:(clientX-r.left)/scaleX, y:(clientY-r.top)/scaleY};
+}
+
+canvas.addEventListener('mousemove',e=>{
+  if(viewMode!=='atom')return;
+  const {x:mx,y:my}=toCanvasCoords(e.clientX,e.clientY);
+  const d=Math.sqrt((mx-CCX)**2+(my-CCY)**2);
+  const sm=buildShellMap(getConfig(currentZ));const ns=Object.keys(sm).map(Number).sort();
+  hovN=null;
+  for(const n of ns){if(Math.abs(d-shellR(n))<16){hovN=n;break;}}
+  canvas.style.cursor=hovN?'pointer':'default';
+  document.getElementById('clickHint').style.opacity=hovN?'1':'.35';
+});
+canvas.addEventListener('mouseleave',()=>{hovN=null;canvas.style.cursor='default';});
+canvas.addEventListener('click',e=>{
+  if(viewMode==='subshell')return;
+  const {x:mx,y:my}=toCanvasCoords(e.clientX,e.clientY);
+  const d=Math.sqrt((mx-CCX)**2+(my-CCY)**2);
+  const sm=buildShellMap(getConfig(currentZ));const ns=Object.keys(sm).map(Number).sort();
+  for(const n of ns){
+    if(Math.abs(d-shellR(n))<16){
+      viewMode='subshell';selN=n;subElectrons=buildSubElectrons(n);
+      openSubshellPanel(n);canvas.style.cursor='default';break;
+    }
+  }
+});
+
+// ── Main loop ──
+function loop(){
+  ctx.clearRect(0,0,CW,CH);
+  if(viewMode==='atom'){
+    const sm=buildShellMap(getConfig(currentZ));
+    drawShells(sm);drawNucleus(currentZ);drawElectrons();
+  } else {
+    drawSubshellView(selN);
+  }
+  requestAnimationFrame(loop);
+}
+
+// ── Sidebar updates ──
+function updateUI(Z){
+  const el=ELEMENTS[Z]||{sym:'?',name:'?',period:'?',group:'?'};
+  document.getElementById('elSymbol').textContent=el.sym;
+  document.getElementById('elName').textContent=el.name;
+  document.getElementById('elNumber').textContent=`Z=${Z} · Per.${el.period} · ${el.group}`;
+  document.getElementById('elCount').textContent=Z;
+  const cfg=getConfig(Z);
+  document.getElementById('configText').textContent=configString(cfg);
+  const last=getLastE(cfg);
+  if(last){document.getElementById('qn-n').textContent=last.n;document.getElementById('qn-l').textContent=last.l;document.getElementById('qn-m').textContent=last.m;document.getElementById('qn-s').textContent=last.s>0?'+½':'−½';}
+  buildOrbDiagram(cfg);
+  document.getElementById('btnMinus').disabled=Z<=1;
+  document.getElementById('btnPlus').disabled=Z>=118;
+  // if in subshell mode, refresh subshell panel
+  if(viewMode==='subshell'&&selN){
+    subElectrons=buildSubElectrons(selN);
+    openSubshellPanel(selN);
+  }
+  setTimeout(positionPanels,10);
+}
+
+function buildOrbDiagram(cfg){
+  const c=document.getElementById('orbitalDiagram');c.innerHTML='';
+  for(const o of cfg){
+    const l=o.l,col=SUBSHELL_COLORS[l],nO=2*l+1;
+    const row=document.createElement('div');row.className='orbital-row';
+    const lbl=document.createElement('div');lbl.className='orbital-label';lbl.style.color=col;lbl.textContent=o.label;row.appendChild(lbl);
+    const boxes=document.createElement('div');boxes.className='orbital-boxes';
+    for(let i=0;i<nO;i++){
+      const b=document.createElement('div');b.className='orbital-box';b.style.borderColor=H(col,.4);
+      const ex=o.fill-nO;
+      if(o.fill<=nO){if(i<o.fill)b.innerHTML='<span class="arrow-up">↑</span>';}
+      else{if(i<ex)b.innerHTML='<span class="arrow-up">↑</span><span class="arrow-down">↑</span>';else b.innerHTML='<span class="arrow-up">↑</span>';}
+      boxes.appendChild(b);
+    }
+    row.appendChild(boxes);c.appendChild(row);
+  }
+}
+
+// ── Controls ──
+function changeElectron(d){
+  const nz=currentZ+d;if(nz<1||nz>118)return;
+  currentZ=nz;electrons=buildElectronObjects(currentZ);
+  if(d>0){newElIdx=electrons.length-1;hlTimer=150;}else newElIdx=-1;
+  updateUI(currentZ);
+}
+
+function applyDirectInput(){
+  const v=parseInt(document.getElementById('elDirectInput').value);
+  if(isNaN(v)||v<1||v>118)return;
+  const old=currentZ;currentZ=v;
+  electrons=buildElectronObjects(currentZ);
+  newElIdx=v>old?electrons.length-1:-1;hlTimer=v>old?150:0;
+  updateUI(currentZ);
+  document.getElementById('elDirectInput').value='';
+}
+document.getElementById('elDirectInput').addEventListener('keydown',e=>{if(e.key==='Enter')applyDirectInput();});
+
+// ── Scale wrapper to fit any screen (PhET-style) ──
+function scaleWrapper(){
+  const W=1024,H=640;
+  const scaleX=window.innerWidth/W;
+  const scaleY=window.innerHeight/H;
+  const scale=Math.min(scaleX,scaleY);
+  document.getElementById('appWrapper').style.transform=
+    `translate(-50%,-50%) scale(${scale})`;
+}
+
+// ── Init ──
+window.addEventListener('resize',()=>{scaleWrapper();resizeCanvas();electrons=buildElectronObjects(currentZ);if(viewMode==='subshell'&&selN)subElectrons=buildSubElectrons(selN);});
+scaleWrapper();
+resizeCanvas();
+electrons=buildElectronObjects(currentZ);
+updateUI(currentZ);
+requestAnimationFrame(loop);
+</script>
+</div><!-- /appWrapper -->
+</body>
+</html>
